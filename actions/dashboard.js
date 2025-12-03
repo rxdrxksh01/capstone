@@ -3,31 +3,18 @@
 import aj from "@/lib/arcjet";
 import { db } from "@/lib/prisma";
 import { request } from "@arcjet/next";
-import { auth } from "@clerk/nextjs/server";
+import { getAuthenticatedUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 const serializeTransaction = (obj) => {
   const serialized = { ...obj };
-  if (obj.balance) {
-    serialized.balance = obj.balance.toNumber();
-  }
-  if (obj.amount) {
-    serialized.amount = obj.amount.toNumber();
-  }
+  // MongoDB/Prisma Float is already a number, no need for toNumber()
   return serialized;
 };
 
 export async function getUserAccounts() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-
-  if (!user) {
-    throw new Error("User not found");
-  }
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error("Unauthorized");
 
   try {
     const accounts = await db.account.findMany({
@@ -53,15 +40,15 @@ export async function getUserAccounts() {
 
 export async function createAccount(data) {
   try {
-    const { userId } = await auth();
-    if (!userId) throw new Error("Unauthorized");
+    const user = await getAuthenticatedUser();
+    if (!user) throw new Error("Unauthorized");
 
     // Get request data for ArcJet
     const req = await request();
 
     // Check rate limit
     const decision = await aj.protect(req, {
-      userId,
+      userId: user.id,
       requested: 1, // Specify how many tokens to consume
     });
 
@@ -80,14 +67,6 @@ export async function createAccount(data) {
       }
 
       throw new Error("Request blocked");
-    }
-
-    const user = await db.user.findUnique({
-      where: { clerkUserId: userId },
-    });
-
-    if (!user) {
-      throw new Error("User not found");
     }
 
     // Convert balance to float before saving
@@ -135,16 +114,8 @@ export async function createAccount(data) {
 }
 
 export async function getDashboardData() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-
-  if (!user) {
-    throw new Error("User not found");
-  }
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error("Unauthorized");
 
   // Get all user transactions
   const transactions = await db.transaction.findMany({
