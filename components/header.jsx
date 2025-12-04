@@ -30,7 +30,7 @@ const Header = async () => {
           />
         </Link>
 
-        {/* Navigation Links - Different for signed in/out users */}
+        {}
         <div className="hidden md:flex items-center space-x-8">
           {!user && (
             <>
@@ -47,7 +47,7 @@ const Header = async () => {
           )}
         </div>
 
-        {/* Action Buttons */}
+        {}
         <div className="flex items-center space-x-4">
           {user ? (
             <>
